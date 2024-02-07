@@ -22,7 +22,8 @@ now appear next to the button, and the pulse amplitude is expressed as a multipl
 threshold were 200mV, 1.5 xT would correspond to a pulse 300 mV in amplitude)
 
 ## "Full Mode"
-![Screenshot 2024-02-06 230410](https://github.com/MarinManuel/StimJimGUI/assets/65401298/9632f742-6693-4c01-a790-b70c66326a4f)
+![Screenshot 2024-02-06 233854](https://github.com/MarinManuel/StimJimGUI/assets/65401298/c4542f50-e629-4f3e-b9e8-0a9db881e065)
+
 
 In "Full Mode", all the settings can be freely adjusted as described in the [StimJim Documentation](https://bitbucket.org/natecermak/stimjim/src/master/)
 
