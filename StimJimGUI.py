@@ -11,8 +11,8 @@ from PyQt5.QtWidgets import (
 
 # noinspection PyUnresolvedReferences
 import resources.resources
-from lib.StimJim import discover_ports, choose_port_dialog, STIMJIM_SERIAL_BAUDRATE
-from lib.GUI import StimJimGUI
+from src.StimJim import discover_ports, choose_port_dialog, STIMJIM_SERIAL_BAUDRATE
+from src.GUI import StimJimGUI
 
 logger = logging.getLogger("StimJimGUI")
 handler = logging.StreamHandler()
