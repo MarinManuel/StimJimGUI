@@ -75,7 +75,7 @@ def discover_ports(pattern=STIMJIM_SERIAL_INFO):
     return ports
 
 
-class StimJimTooManyPhasesException(Exception):
+class StimJimTooManyStagesException(Exception):
     pass
 
 
@@ -110,7 +110,7 @@ class PulseTrain(object):
         train_period_us=2000,
         train_duration_us=1000000,
         channel_modes=None,
-        phases=None,
+        stages=None,
     ):
         self.train_id = train_id
         self._channel_modes = (
@@ -120,25 +120,25 @@ class PulseTrain(object):
         )
         self._train_period_us = train_period_us
         self._train_duration_us = train_duration_us
-        self._phases = [] if phases is None else phases
+        self._stages = [] if stages is None else stages
 
-    def add_phase(self, phase=None):
-        if len(self._phases) >= self.MAX_N_PHASES:
-            raise StimJimTooManyPhasesException(
+    def add_stage(self, stage=None):
+        if len(self._stages) >= self.MAX_N_PHASES:
+            raise StimJimTooManyStagesException(
                 f"Cannot add more that {self.MAX_N_PHASES} to a PulseTrain"
             )
         else:
-            if phase is None:
-                phase = PulsePhase()
-            phase.pulse_train = self
-            self._phases.append(phase)
+            if stage is None:
+                stage = PulseStage()
+            stage.pulse_train = self
+            self._stages.append(stage)
 
-    def remove_phase(self, index: int = -1):
-        self._phases.pop(index)
+    def remove_stage(self, index: int = -1):
+        self._stages.pop(index)
 
     @property
-    def phases(self):
-        return self._phases
+    def stages(self):
+        return self._stages
 
     def set_mode(self, channel_index: int, mode: StimJimOutputModes):
         self._channel_modes[channel_index] = mode
@@ -180,8 +180,8 @@ class PulseTrain(object):
 
     def get_stimjim_string(self):
         command = f"S{self.train_id:d},{self.get_mode(0):d},{self.get_mode(1):d},{self.train_period_us:d},{self.train_duration_us:d}"
-        for phase in self.phases:
-            command += ";" + phase.get_stimjim_string()
+        for stage in self.stages:
+            command += ";" + stage.get_stimjim_string()
         command += "\n"
         return command
 
@@ -191,7 +191,7 @@ class PulseTrain(object):
             train_period_us=self.train_period_us,
             train_duration_us=self.train_duration_us,
             channel_modes=[int(mode) for mode in self._channel_modes],
-            phases=[phase.to_json() for phase in self.phases],
+            stages=[stage.to_json() for stage in self.stages],
         )
 
     @staticmethod
@@ -202,14 +202,14 @@ class PulseTrain(object):
             train_duration_us=json_dict["train_duration_us"],
             channel_modes=json_dict["channel_modes"],
         )
-        for phase_dict in json_dict["phases"]:
-            pp = PulsePhase(**phase_dict)
+        for stage_dict in json_dict["stages"]:
+            pp = PulseStage(**stage_dict)
             pp.pulse_train = pt
-            pt.add_phase(pp)
+            pt.add_stage(pp)
         return pt
 
 
-class PulsePhase(object):
+class PulseStage(object):
     def __init__(self, ch0_amp=0, ch1_amp=0, duration=100):
         self.channel_amps = [ch0_amp, ch1_amp]
         self.duration_us = duration

@@ -40,9 +40,9 @@ from src.StimJim import (
     STIMJIM_MAX_VALS,
     STIMJIM_DURATION_SCALING_FACTOR,
     STIMJIM_TRIGGER_COMMANDS,
-    PulsePhase,
+    PulseStage,
     PulseTrain,
-    StimJimTooManyPhasesException,
+    StimJimTooManyStagesException,
     StimJimTrigDirection,
     STIMJIM_N_TRIGGERS,
 )
@@ -51,27 +51,27 @@ from src.scientific_spinbox import ScienDSpinBox
 logger = logging.getLogger("StimJimGUI")
 
 
-class PulsePhaseTableDelegate(QStyledItemDelegate):
+class PulseStageTableDelegate(QStyledItemDelegate):
     def __init__(self):
         super().__init__()
 
     def createEditor(self, parent, option, index):
         spinbox = ScienDSpinBox(parent)
-        phase: PulsePhase = index.model().list_of_phases[index.row()]
+        stage: PulseStage = index.model().list_of_stages[index.row()]
 
         if (
-            index.column() in range(len(phase.channel_amps))
-            and phase.pulse_train is not None
+            index.column() in range(len(stage.channel_amps))
+            and stage.pulse_train is not None
         ):
-            spinbox.setSuffix(STIMJIM_UNITS[phase.pulse_train.get_mode(index.column())])
+            spinbox.setSuffix(STIMJIM_UNITS[stage.pulse_train.get_mode(index.column())])
             spinbox.setMaximum(
-                STIMJIM_MAX_VALS[phase.pulse_train.get_mode(index.column())]
+                STIMJIM_MAX_VALS[stage.pulse_train.get_mode(index.column())]
             )
             spinbox.setMinimum(
-                -1 * STIMJIM_MAX_VALS[phase.pulse_train.get_mode(index.column())]
+                -1 * STIMJIM_MAX_VALS[stage.pulse_train.get_mode(index.column())]
             )
             spinbox.setSingleStep(
-                STIMJIM_INCREMENT_STEPS[phase.pulse_train.get_mode(index.column())]
+                STIMJIM_INCREMENT_STEPS[stage.pulse_train.get_mode(index.column())]
             )
         else:
             spinbox.setSuffix("s")
@@ -81,12 +81,12 @@ class PulsePhaseTableDelegate(QStyledItemDelegate):
         return spinbox
 
     def setEditorData(self, editor: ScienDSpinBox, index):
-        phase: PulsePhase = index.model().list_of_phases[index.row()]
-        value = (phase.channel_amps + [phase.duration_us])[index.column()]
-        if index.column() in range(len(phase.channel_amps)):
+        stage: PulseStage = index.model().list_of_stages[index.row()]
+        value = (stage.channel_amps + [stage.duration_us])[index.column()]
+        if index.column() in range(len(stage.channel_amps)):
             value = (
                 value
-                / STIMJIM_SCALING_FACTORS[phase.pulse_train.get_mode(index.column())]
+                / STIMJIM_SCALING_FACTORS[stage.pulse_train.get_mode(index.column())]
             )
         else:
             value = value / STIMJIM_DURATION_SCALING_FACTOR
@@ -94,30 +94,30 @@ class PulsePhaseTableDelegate(QStyledItemDelegate):
 
     def setModelData(self, editor: ScienDSpinBox, model, index):
         value = editor.value()
-        phase: PulsePhase = index.model().list_of_phases[index.row()]
-        if index.column() in range(len(phase.channel_amps)):
-            scale = STIMJIM_SCALING_FACTORS[phase.pulse_train.get_mode(index.column())]
+        stage: PulseStage = index.model().list_of_stages[index.row()]
+        if index.column() in range(len(stage.channel_amps)):
+            scale = STIMJIM_SCALING_FACTORS[stage.pulse_train.get_mode(index.column())]
             value = value * scale
-            phase.channel_amps[index.column()] = value
+            stage.channel_amps[index.column()] = value
         else:
             value = value * STIMJIM_DURATION_SCALING_FACTOR
-            phase.duration_us = value
+            stage.duration_us = value
         index.model().dataChanged.emit(index, index, [Qt.EditRole])
 
 
 # noinspection PyMethodOverriding
-class PulsePhaseTableModel(QAbstractTableModel):
-    HEADER = ["Ch0 amp", "Ch1 amp", "Phase duration"]
+class PulseStageTableModel(QAbstractTableModel):
+    HEADER = ["Ch0 amp", "Ch1 amp", "Stage duration"]
 
-    def __init__(self, pulsephases):
+    def __init__(self, pulse_stages):
         super().__init__()
-        self.list_of_phases = pulsephases
+        self.list_of_stages = pulse_stages
 
     def headerData(self, section, orientation, role):
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
             return self.HEADER[section]
         elif orientation == Qt.Vertical and role == Qt.DisplayRole:
-            return f"Phase {section + 1}"
+            return f"Stage {section + 1}"
         return None
 
     def flags(self, index):
@@ -125,25 +125,25 @@ class PulsePhaseTableModel(QAbstractTableModel):
 
     def data(self, index, role):
         if role in (Qt.DisplayRole, Qt.EditRole):
-            phase: PulsePhase = self.list_of_phases[index.row()]
-            if index.column() in range(len(phase.channel_amps)):
-                return phase.channel_amps[index.column()]
+            stage: PulseStage = self.list_of_stages[index.row()]
+            if index.column() in range(len(stage.channel_amps)):
+                return stage.channel_amps[index.column()]
             else:
-                return phase.duration_us
+                return stage.duration_us
 
     def setData(self, index, value, role):
         if role == Qt.EditRole:
-            phase: PulsePhase = self.list_of_phases[index.row()]
-            if index.column() in range(len(phase.channel_amps)):
-                phase.channel_amps[index.column()] = value
+            stage: PulseStage = self.list_of_stages[index.row()]
+            if index.column() in range(len(stage.channel_amps)):
+                stage.channel_amps[index.column()] = value
             else:
-                phase.duration_us = value
+                stage.duration_us = value
             self.dataChanged.emit(index, index, [Qt.EditRole])
             return True
         return False
 
     def rowCount(self, index=None):
-        return len(self.list_of_phases)
+        return len(self.list_of_stages)
 
     def columnCount(self, index=None):
         return 3
@@ -166,10 +166,10 @@ class FullModeWidget(QWidget):
     ch1ModeSpinBox: QComboBox
     pulseTrainIDSpinBox: QSpinBox
     ch0ModeSpinBox: QComboBox
-    pulsePhasesTable: QTableView
+    pulseStagesTable: QTableView
     trainPeriodSpinBox: ScienDSpinBox
-    addPhaseButton: QToolButton
-    removePhaseButton: QToolButton
+    addStageButton: QToolButton
+    removeStageButton: QToolButton
 
     def __init__(self, stimjim: StimJim):
         super().__init__()
@@ -180,7 +180,7 @@ class FullModeWidget(QWidget):
         uic.loadUi("./src/FullModeWidget.ui", self)
         self.ch0ModeSpinBox.addItems(STIMJIM_MODE_NAMES.values())
         self.ch1ModeSpinBox.addItems(STIMJIM_MODE_NAMES.values())
-        self.pulsePhasesTable.setItemDelegate(PulsePhaseTableDelegate())
+        self.pulseStagesTable.setItemDelegate(PulseStageTableDelegate())
 
         #
         # SIGNALS
@@ -200,8 +200,8 @@ class FullModeWidget(QWidget):
         self.ch1ModeSpinBox.currentIndexChanged.connect(self._on_ch1mode_changed)
         self.trainDurationSpinBox.valueChanged.connect(self._on_train_duration_changed)
         self.trainPeriodSpinBox.valueChanged.connect(self._on_train_period_changed)
-        self.addPhaseButton.clicked.connect(self._on_add_phase)
-        self.removePhaseButton.clicked.connect(self._on_remove_phase)
+        self.addStageButton.clicked.connect(self._on_add_stage)
+        self.removeStageButton.clicked.connect(self._on_remove_stage)
 
         self.trig0SpinBox.valueChanged.connect(self.update_stimjim)
         self.trig1SpinBox.valueChanged.connect(self.update_stimjim)
@@ -214,8 +214,8 @@ class FullModeWidget(QWidget):
         self.ch1ModeSpinBox.currentIndexChanged.connect(self.update_stimjim)
         self.trainDurationSpinBox.valueChanged.connect(self.update_stimjim)
         self.trainPeriodSpinBox.valueChanged.connect(self.update_stimjim)
-        self.addPhaseButton.clicked.connect(self.update_stimjim)
-        self.removePhaseButton.clicked.connect(self.update_stimjim)
+        self.addStageButton.clicked.connect(self.update_stimjim)
+        self.removeStageButton.clicked.connect(self.update_stimjim)
 
         #
         # UPDATE
@@ -266,36 +266,36 @@ class FullModeWidget(QWidget):
         pulsetrain = self.stimjim.pulse_trains[self.pulseTrainIDSpinBox.value()]
         pulsetrain.train_period_s = value
 
-    def _on_add_phase(self, _):
+    def _on_add_stage(self, _):
         pulsetrain = self.stimjim.pulse_trains[self.pulseTrainIDSpinBox.value()]
         try:
-            pulsetrain.add_phase()
+            pulsetrain.add_stage()
             # noinspection PyUnresolvedReferences
-            self.pulsePhasesTable.model().layoutChanged.emit()
+            self.pulseStagesTable.model().layoutChanged.emit()
             self.show_all_delegates()
-        except StimJimTooManyPhasesException:
+        except StimJimTooManyStagesException:
             pass  # TODO: could add a sound effect here?
 
-    def _on_remove_phase(self, _):
+    def _on_remove_stage(self, _):
         pulsetrain = self.stimjim.pulse_trains[self.pulseTrainIDSpinBox.value()]
         try:
-            pulsetrain.remove_phase()
+            pulsetrain.remove_stage()
             # noinspection PyUnresolvedReferences
-            self.pulsePhasesTable.model().layoutChanged.emit()
+            self.pulseStagesTable.model().layoutChanged.emit()
             self.show_all_delegates()
         except IndexError:
             pass  # TODO: could add a sound effect?
 
     def show_all_delegates(self):
         # FIXME: This works but is very hacky
-        if self.pulsePhasesTable.model() is not None:
-            for i in range(self.pulsePhasesTable.model().rowCount()):
-                for j in range(self.pulsePhasesTable.model().columnCount()):
-                    self.pulsePhasesTable.closePersistentEditor(
-                        self.pulsePhasesTable.model().index(i, j)
+        if self.pulseStagesTable.model() is not None:
+            for i in range(self.pulseStagesTable.model().rowCount()):
+                for j in range(self.pulseStagesTable.model().columnCount()):
+                    self.pulseStagesTable.closePersistentEditor(
+                        self.pulseStagesTable.model().index(i, j)
                     )
-                    self.pulsePhasesTable.openPersistentEditor(
-                        self.pulsePhasesTable.model().index(i, j)
+                    self.pulseStagesTable.openPersistentEditor(
+                        self.pulseStagesTable.model().index(i, j)
                     )
 
     def populate_pulseTrain(self, pulsetrain_id: int):
@@ -304,9 +304,9 @@ class FullModeWidget(QWidget):
         self.ch1ModeSpinBox.setCurrentIndex(pulsetrain.get_mode(1))
         self.trainDurationSpinBox.setValue(pulsetrain.train_duration_s)
         self.trainPeriodSpinBox.setValue(pulsetrain.train_period_s)
-        self.pulsePhasesTable.setModel(PulsePhaseTableModel(pulsetrain.phases))
+        self.pulseStagesTable.setModel(PulseStageTableModel(pulsetrain.stages))
         self.show_all_delegates()
-        self.pulsePhasesTable.model().dataChanged.connect(self.update_stimjim)
+        self.pulseStagesTable.model().dataChanged.connect(self.update_stimjim)
 
     # noinspection PyUnusedLocal
     def update_stimjim(self, *args):
@@ -457,7 +457,7 @@ class SimpleModeWidget(QWidget):
         pulse_train.train_duration_us = train_duration_us
         pulse_train.train_period_us = period_us
 
-        # Pulse Phase(s)
+        # Pulse Stage(s)
         amps = [0, 0]
         if self.thresholdButton.isChecked():
             amp = int(
@@ -472,24 +472,24 @@ class SimpleModeWidget(QWidget):
             )
         amps[self.channel_id] = amp
 
-        phase_duration_us = (
+        stage_duration_us = (
             STIMJIM_DURATION_SCALING_FACTOR * self.stimDurationSpinBox.value()
         )
         if self.isBipolarCheckBox.isChecked():
-            phase_duration_us /= 2
-        phase_duration_us = int(phase_duration_us)
+            stage_duration_us /= 2
+        stage_duration_us = int(stage_duration_us)
 
-        while len(pulse_train.phases) > 0:
-            pulse_train.remove_phase(-1)
-        pulse_train.add_phase(
-            PulsePhase(ch0_amp=amps[0], ch1_amp=amps[1], duration=phase_duration_us)
+        while len(pulse_train.stages) > 0:
+            pulse_train.remove_stage(-1)
+        pulse_train.add_stage(
+            PulseStage(ch0_amp=amps[0], ch1_amp=amps[1], duration=stage_duration_us)
         )
         if self.isBipolarCheckBox.isChecked():
-            pulse_train.add_phase(
-                PulsePhase(
+            pulse_train.add_stage(
+                PulseStage(
                     ch0_amp=-1 * amps[0],
                     ch1_amp=-1 * amps[1],
-                    duration=phase_duration_us,
+                    duration=stage_duration_us,
                 )
             )
 
@@ -501,18 +501,18 @@ class SimpleModeWidget(QWidget):
 
     def update_widgets(self):
         pulse_train = self.stimjim.pulse_trains[self.channel_id]
-        phase0: PulsePhase = pulse_train.phases[0]
-        is_bipolar = len(pulse_train.phases) > 1
+        stage0: PulseStage = pulse_train.stages[0]
+        is_bipolar = len(pulse_train.stages) > 1
         with QSignalBlocker(self.stimModeComboBox):
             self.stimModeComboBox.setCurrentIndex(pulse_train.get_mode(self.channel_id))
             self._on_mode_changed(self.stimModeComboBox.currentIndex())
         with QSignalBlocker(self.stimAmplitudeSpinBox):
             self.stimAmplitudeSpinBox.setValue(
-                phase0.channel_amps[self.channel_id]
+                stage0.channel_amps[self.channel_id]
                 / STIMJIM_SCALING_FACTORS[pulse_train.get_mode(self.channel_id)]
             )
         stim_duration_us = (
-            phase0.duration_us if not is_bipolar else phase0.duration_us * 2
+            stage0.duration_us if not is_bipolar else stage0.duration_us * 2
         )
         stim_duration_s = stim_duration_us / STIMJIM_DURATION_SCALING_FACTOR
         with QSignalBlocker(self.stimDurationSpinBox):
