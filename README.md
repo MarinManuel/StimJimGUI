@@ -4,7 +4,7 @@ GUI for the [StimJim](https://bitbucket.org/natecermak/stimjim) Open Source elec
 The GUI offers two modes:
 
 ## Simple Mode
-![Screenshot 2024-02-06 230855](https://github.com/MarinManuel/StimJimGUI/assets/65401298/23ce2f0a-337f-49db-af1c-03b530869549)
+![Screenshot 2024-02-06 230855](https://github.com/MarinManuel/StimJimGUI/assets/65401298/632121ee-0278-4650-b66f-8415ec79f997)
 
 In "Simple Mode", a rising pulse on TRIG0 triggers the output of a train of stimuli on OUT0, while a rising pulse on 
 TRIG1 triggers OUT1. You can adjust the number and frequency of the output, as well as its intensity and duration of the 
@@ -22,11 +22,11 @@ now appear next to the button, and the pulse amplitude is expressed as a multipl
 threshold were 200mV, 1.5 xT would correspond to a pulse 300 mV in amplitude)
 
 ## "Full Mode"
-![Screenshot 2024-02-06 230410](https://github.com/MarinManuel/StimJimGUI/assets/65401298/29cea81c-ef1b-478a-a8dc-7248eb9a66d9)
+![Screenshot 2024-02-06 230410](https://github.com/MarinManuel/StimJimGUI/assets/65401298/9632f742-6693-4c01-a790-b70c66326a4f)
 
 In "Full Mode", all the settings can be freely adjusted as described in the [StimJim Documentation](https://bitbucket.org/natecermak/stimjim/src/master/)
-![image](https://github.com/MarinManuel/StimJimGUI/assets/65401298/a16d72b9-19af-4751-9220-74d6a5dbf81f)
 
+![Screenshot 2024-02-06 230539](https://github.com/MarinManuel/StimJimGUI/assets/65401298/812a0715-ebcb-4424-ac76-b02525fad89f)
 
 # Usage
 ## Installation
