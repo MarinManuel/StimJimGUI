@@ -630,7 +630,11 @@ class StimJimGUI(QMainWindow):
                 with open(self.log_filename, "a") as f:
                     f.write(recv)
             if "Train complete" in recv and self.broadcast:
-                requests.put(f"http://{self.broadcast}/api/message", json={"text": f"{recv}"})
+                logger.debug(f"Sending message [{recv}] to [{self.broadcast}]")
+                r = requests.put(f"http://{self.broadcast}/api/message", json={"text": f"{recv}"})
+                if not r.status_code == requests.codes.ok:
+                    logger.warning(f"Received answer {r} when trying to broadcast message to OpenEphys "
+                                   f"GUI via {self.broadcast}")
 
     def _on_action_send_command(self):
         command, ok = QInputDialog(self).getItem(
