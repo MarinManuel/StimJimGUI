@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>534</width>
-    <height>283</height>
+    <width>580</width>
+    <height>296</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -353,7 +353,7 @@ Train Pulse #</string>
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="ScienDSpinBox" name="trainDurationSpinBox">
+       <widget class="DelayScienDSpinBox" name="trainDurationSpinBox">
         <property name="suffix">
          <string>s</string>
         </property>
@@ -383,7 +383,7 @@ Train Pulse #</string>
        </widget>
       </item>
       <item row="2" column="3">
-       <widget class="ScienDSpinBox" name="trainPeriodSpinBox">
+       <widget class="DelayScienDSpinBox" name="trainPeriodSpinBox">
         <property name="suffix">
          <string>s</string>
         </property>
@@ -499,9 +499,9 @@ Train Pulse #</string>
  </widget>
  <customwidgets>
   <customwidget>
-   <class>ScienDSpinBox</class>
+   <class>DelayScienDSpinBox</class>
    <extends>QDoubleSpinBox</extends>
-   <header location="global">src.scientific_spinbox</header>
+   <header location="global">src.GUI</header>
   </customwidget>
  </customwidgets>
  <resources>
