@@ -673,9 +673,16 @@ class StimJimGUI(QMainWindow):
                 with open(self.log_filename, "a") as f:
                     f.write(recv)
             if "Train complete" in recv and self.broadcast:
-                requests.put(
-                    f"http://{self.broadcast}/api/message", json={"text": f"{recv}"}
-                )
+                logger.debug(f"Sending message [{recv}] to [{self.broadcast}]")
+                try:
+                    r = requests.put(
+                        f"http://{self.broadcast}/api/message", json={"text": f"{recv}"}
+                    )
+                    if not r.status_code == requests.codes.ok:
+                        logger.warning(f"Broadcast returned code {r}")
+                except requests.ConnectionError as e:
+                    logger.debug(f"Could not broadcast message, connection was refused. Disabling broadcasting...")
+                    self.broadcast = False
 
     def _on_action_send_command(self):
         command, ok = QInputDialog(self).getItem(
