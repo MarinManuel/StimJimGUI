@@ -2,11 +2,12 @@ import json
 import logging
 from pathlib import Path
 
+import requests
 import serial
 
 # noinspection PyUnresolvedReferences
 from PyQt5 import uic
-from PyQt5.QtCore import QTimer, QAbstractTableModel, Qt, QSignalBlocker
+from PyQt5.QtCore import QTimer, QAbstractTableModel, Qt, QSignalBlocker, pyqtSignal
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import (
     QInputDialog,
@@ -51,12 +52,50 @@ from src.scientific_spinbox import ScienDSpinBox
 logger = logging.getLogger("StimJimGUI")
 
 
+class DelayScienDSpinBox(ScienDSpinBox):
+    """
+    This is a variant of ScienDSpinBox, which delays the emission of the valueChanged signal until the widget
+    loses focus or the enter key is pressed
+    """
+
+    valueChanged = pyqtSignal(object, name="valueChanged")
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.__cached_value = self.value()
+
+    def update_value(self):
+        self.blockSignals(True)
+        super().update_value()
+        self.blockSignals(False)
+
+    def setValue(self, value):
+        self.blockSignals(True)
+        super().setValue(value)
+        self.blockSignals(False)
+
+    def focusOutEvent(self, event):
+        if self.__cached_value != self.value():
+            self.valueChanged.emit(self.value())
+            self.__cached_value = self.value()
+        super().focusOutEvent(event)
+
+    def keyPressEvent(self, event):
+        super().keyPressEvent(event)
+        if self.__cached_value != self.value() and (
+            event.key() == Qt.Key_Enter or event.key() == Qt.Key_Return
+        ):
+            self.valueChanged.emit(self.value())
+            self.__cached_value = self.value()
+
+
+# noinspection PyMethodOverriding
 class PulseStageTableDelegate(QStyledItemDelegate):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
 
     def createEditor(self, parent, option, index):
-        spinbox = ScienDSpinBox(parent)
+        spinbox = DelayScienDSpinBox(parent)
         stage: PulseStage = index.model().list_of_stages[index.row()]
 
         if (
@@ -80,7 +119,7 @@ class PulseStageTableDelegate(QStyledItemDelegate):
 
         return spinbox
 
-    def setEditorData(self, editor: ScienDSpinBox, index):
+    def setEditorData(self, editor: DelayScienDSpinBox, index):
         stage: PulseStage = index.model().list_of_stages[index.row()]
         value = (stage.channel_amps + [stage.duration_us])[index.column()]
         if index.column() in range(len(stage.channel_amps)):
@@ -92,7 +131,7 @@ class PulseStageTableDelegate(QStyledItemDelegate):
             value = value / STIMJIM_DURATION_SCALING_FACTOR
         editor.setValue(value)
 
-    def setModelData(self, editor: ScienDSpinBox, model, index):
+    def setModelData(self, editor: DelayScienDSpinBox, model, index):
         value = editor.value()
         stage: PulseStage = index.model().list_of_stages[index.row()]
         if index.column() in range(len(stage.channel_amps)):
@@ -109,8 +148,8 @@ class PulseStageTableDelegate(QStyledItemDelegate):
 class PulseStageTableModel(QAbstractTableModel):
     HEADER = ["Ch0 amp", "Ch1 amp", "Stage duration"]
 
-    def __init__(self, pulse_stages):
-        super().__init__()
+    def __init__(self, pulse_stages, parent=None):
+        super().__init__(parent)
         self.list_of_stages = pulse_stages
 
     def headerData(self, section, orientation, role):
@@ -162,17 +201,17 @@ class FullModeWidget(QWidget):
     trig1FallingEdgeButton: QToolButton
     trig1ManualTriggerButton: QToolButton
     trig1CancelTrainButton: QToolButton
-    trainDurationSpinBox: ScienDSpinBox
+    trainDurationSpinBox: DelayScienDSpinBox
     ch1ModeSpinBox: QComboBox
     pulseTrainIDSpinBox: QSpinBox
     ch0ModeSpinBox: QComboBox
     pulseStagesTable: QTableView
-    trainPeriodSpinBox: ScienDSpinBox
+    trainPeriodSpinBox: DelayScienDSpinBox
     addStageButton: QToolButton
     removeStageButton: QToolButton
 
-    def __init__(self, stimjim: StimJim):
-        super().__init__()
+    def __init__(self, stimjim: StimJim, parent=None):
+        super().__init__(parent=parent)
         self.stimjim = stimjim
         #
         # UI
@@ -185,17 +224,17 @@ class FullModeWidget(QWidget):
         #
         # SIGNALS
         #
-        self.trig0SpinBox.valueChanged.connect(self._on_trig0SpinBox_changed)
-        self.trig1SpinBox.valueChanged.connect(self._on_trig1SpinBox_changed)
-        self.trig0RisingEdgeButton.clicked.connect(self._on_trig0SpinBox_changed)
-        self.trig0FallingEdgeButton.clicked.connect(self._on_trig0SpinBox_changed)
-        self.trig1RisingEdgeButton.clicked.connect(self._on_trig1SpinBox_changed)
-        self.trig1FallingEdgeButton.clicked.connect(self._on_trig1SpinBox_changed)
+        self.trig0SpinBox.valueChanged.connect(self._on_trig0_spinbox_changed)
+        self.trig1SpinBox.valueChanged.connect(self._on_trig1_spinbox_changed)
+        self.trig0RisingEdgeButton.clicked.connect(self._on_trig0_spinbox_changed)
+        self.trig0FallingEdgeButton.clicked.connect(self._on_trig0_spinbox_changed)
+        self.trig1RisingEdgeButton.clicked.connect(self._on_trig1_spinbox_changed)
+        self.trig1FallingEdgeButton.clicked.connect(self._on_trig1_spinbox_changed)
         self.trig0ManualTriggerButton.clicked.connect(self._on_trig0_manual_trigger)
         self.trig1ManualTriggerButton.clicked.connect(self._on_trig1_manual_trigger)
         self.trig0CancelTrainButton.clicked.connect(self._on_trig0_cancel)
         self.trig1CancelTrainButton.clicked.connect(self._on_trig1_cancel)
-        self.pulseTrainIDSpinBox.valueChanged.connect(self._on_pulseTrainID_changed)
+        self.pulseTrainIDSpinBox.valueChanged.connect(self._on_pulse_train_id_changed)
         self.ch0ModeSpinBox.currentIndexChanged.connect(self._on_ch0mode_changed)
         self.ch1ModeSpinBox.currentIndexChanged.connect(self._on_ch1mode_changed)
         self.trainDurationSpinBox.valueChanged.connect(self._on_train_duration_changed)
@@ -220,15 +259,15 @@ class FullModeWidget(QWidget):
         #
         # UPDATE
         #
-        self.populate_pulseTrain(0)
+        self.populate_pulse_train(0)
 
-    def _on_trig0SpinBox_changed(self, _):
+    def _on_trig0_spinbox_changed(self, _):
         # this function can be called either from the spinbox or the buttons, so we don't use the argument
         direction = "0" if self.trig0RisingEdgeButton.isChecked() else "1"
         command = f"R0,{self.trig0SpinBox.value()},{direction}"
         self.stimjim.send_command(command)
 
-    def _on_trig1SpinBox_changed(self, _):
+    def _on_trig1_spinbox_changed(self, _):
         direction = "0" if self.trig1RisingEdgeButton.isChecked() else "1"
         command = f"R1,{self.trig0SpinBox.value()},{direction}"
         self.stimjim.send_command(command)
@@ -245,8 +284,8 @@ class FullModeWidget(QWidget):
     def _on_trig1_cancel(self, _):
         self.stimjim.send_command("U-1")
 
-    def _on_pulseTrainID_changed(self, index: int):
-        self.populate_pulseTrain(index)
+    def _on_pulse_train_id_changed(self, index: int):
+        self.populate_pulse_train(index)
 
     def _on_ch0mode_changed(self, index: int):
         pulsetrain = self.stimjim.pulse_trains[self.pulseTrainIDSpinBox.value()]
@@ -298,7 +337,7 @@ class FullModeWidget(QWidget):
                         self.pulseStagesTable.model().index(i, j)
                     )
 
-    def populate_pulseTrain(self, pulsetrain_id: int):
+    def populate_pulse_train(self, pulsetrain_id: int):
         pulsetrain: PulseTrain = self.stimjim.pulse_trains[pulsetrain_id]
         self.ch0ModeSpinBox.setCurrentIndex(pulsetrain.get_mode(0))
         self.ch1ModeSpinBox.setCurrentIndex(pulsetrain.get_mode(1))
@@ -340,24 +379,24 @@ class FullModeWidget(QWidget):
         self.trig1RisingEdgeButton.setChecked(
             self.stimjim.triggers[1].trig_direction == StimJimTrigDirection.RISING
         )
-        self.populate_pulseTrain(self.pulseTrainIDSpinBox.value())
+        self.populate_pulse_train(self.pulseTrainIDSpinBox.value())
 
 
 class SimpleModeWidget(QWidget):
     channelGroupBox: QGroupBox
     stimModeComboBox: QComboBox
-    stimAmplitudeSpinBox: ScienDSpinBox
-    stimDurationSpinBox: ScienDSpinBox
+    stimAmplitudeSpinBox: DelayScienDSpinBox
+    stimDurationSpinBox: DelayScienDSpinBox
     isBipolarCheckBox: QCheckBox
     stimNPulsesSpinBox: QSpinBox
-    stimTrainFreqSpinBox: ScienDSpinBox
-    stimTrainDurationSpinBox: ScienDSpinBox
+    stimTrainFreqSpinBox: DelayScienDSpinBox
+    stimTrainDurationSpinBox: DelayScienDSpinBox
     trigStimPushButton: QPushButton
     thresholdButton: QPushButton
-    thresholdValueSpinBox: ScienDSpinBox
+    thresholdValueSpinBox: DelayScienDSpinBox
 
-    def __init__(self, channel_id, stimjim: StimJim):
-        super().__init__()
+    def __init__(self, channel_id, stimjim: StimJim, parent=None):
+        super().__init__(parent=parent)
         uic.loadUi("./src/SimpleModeWidget.ui", self)
 
         self.channel_id = channel_id
@@ -437,9 +476,9 @@ class SimpleModeWidget(QWidget):
     def update_stimjim(self, *args):
         # trigger
         self.stimjim.triggers[self.channel_id].train_target = self.channel_id
-        self.stimjim.triggers[
-            self.channel_id
-        ].trig_direction = StimJimTrigDirection.RISING
+        self.stimjim.triggers[self.channel_id].trig_direction = (
+            StimJimTrigDirection.RISING
+        )
         # Pulse Train
         pulse_train = self.stimjim.pulse_trains[self.channel_id]
         pulse_train.set_mode(self.channel_id, self.stimModeComboBox.currentIndex())
@@ -534,12 +573,19 @@ class SimpleModeWidget(QWidget):
 
 
 class StimJimGUI(QMainWindow):
-    def __init__(self, serial_port: serial.Serial, log_filename=None):
-        super().__init__()
+    def __init__(
+        self,
+        serial_port: serial.Serial,
+        log_filename: str = None,
+        broadcast: str = None,
+        parent=None,
+    ):
+        super().__init__(parent=parent)
         self.serial = serial_port
         self.simple_stimjim = StimJim(serial_port)
         self.full_stimjim = StimJim(serial_port)
         self.log_filename = log_filename
+        self.broadcast = broadcast
 
         self.splitter = QSplitter(self)
         self.tabWidget = QTabWidget(self.splitter)
@@ -554,7 +600,7 @@ class StimJimGUI(QMainWindow):
         #
         # Simple Mode tab
         #
-        self.simpleModeTab = QWidget()
+        self.simpleModeTab = QWidget(self)
         self.simpleModeTab.setLayout(QHBoxLayout())
         self.simpleModeWidgets = []
         for ch in range(STIMJIM_N_OUTPUTS):
@@ -566,7 +612,7 @@ class StimJimGUI(QMainWindow):
         #
         # Full Mode tab
         #
-        self.fullModeTab = QWidget()
+        self.fullModeTab = QWidget(self)
         self.fullModeTab.setLayout(QHBoxLayout())
         self.fullModeWidget = FullModeWidget(stimjim=self.full_stimjim)
         self.fullModeTab.layout().addWidget(self.fullModeWidget)
@@ -605,7 +651,7 @@ class StimJimGUI(QMainWindow):
         #
         # Serial Timer
         #
-        self.serial_output_timer = QTimer()
+        self.serial_output_timer = QTimer(self)
         self.serial_output_timer.timeout.connect(self._on_serial_output_timer)
         self.serial_output_timer.start(SERIAL_READ_INTERVAL_MS)
 
@@ -626,9 +672,13 @@ class StimJimGUI(QMainWindow):
             if self.log_filename is not None:
                 with open(self.log_filename, "a") as f:
                     f.write(recv)
+            if "Train complete" in recv and self.broadcast:
+                requests.put(
+                    f"http://{self.broadcast}/api/message", json={"text": f"{recv}"}
+                )
 
     def _on_action_send_command(self):
-        command, ok = QInputDialog().getItem(
+        command, ok = QInputDialog(self).getItem(
             self,
             "Custom Command",
             "Send a custom command to StimJim:",

@@ -11,7 +11,7 @@ from serial.tools.list_ports_common import ListPortInfo
 
 STIMJIM_SERIAL_BAUDRATE = 115200
 STIMJIM_SERIAL_INFO = "VID:PID=16C0:0483"  # this is for a Teensy 4.1
-SERIAL_READ_INTERVAL_MS = 500
+SERIAL_READ_INTERVAL_MS = 250
 STIMJIM_N_OUTPUTS = 2
 STIMJIM_N_TRIGGERS = 2
 STIMJIM_MAX_PULSETRAINS = 100
@@ -41,7 +41,7 @@ STIMJIM_MODE_NAMES = {
 }
 
 STIMJIM_MAX_VALS = {
-    StimJimOutputModes.VOLTAGE: 15.0,
+    StimJimOutputModes.VOLTAGE: 14.9,  # integer overflow if we try to go all the way to 15V
     StimJimOutputModes.CURRENT: 3.330e-3,
     StimJimOutputModes.DISCONNECTED: 0,
     StimJimOutputModes.GROUNDED: 0,

@@ -46,6 +46,12 @@ if __name__ == "__main__":
         help="increase verbosity of output (can be "
         "repeated to increase verbosity further)",
     )
+    parser.add_argument("--broadcast",
+                        help="Broadcast StimJim train output summary to OpenEphys GUI."
+                             "Specify the URL to broadcast to. Default: localhost:37497",
+                        default="localhost:37497")
+    parser.add_argument("--no-broadcast", action="store_const", dest="broadcast", const=None,
+                        help="Suppress broadcasting to OpenEphys GUI.")
     args = parser.parse_args()
 
     level = LOGGING_LEVELS[
@@ -77,7 +83,7 @@ if __name__ == "__main__":
     serial_port = serial.Serial(args.port, baudrate=STIMJIM_SERIAL_BAUDRATE)
 
     app = QApplication([])
-    mw = StimJimGUI(serial_port=serial_port, log_filename=args.log)
+    mw = StimJimGUI(serial_port=serial_port, log_filename=args.log, broadcast=args.broadcast)
     mw.show()
     # Start the event loop.
     app.exec()

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>238</width>
-    <height>311</height>
+    <width>291</width>
+    <height>344</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -41,7 +41,7 @@
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="ScienDSpinBox" name="stimAmplitudeSpinBox"/>
+       <widget class="DelayScienDSpinBox" name="stimAmplitudeSpinBox"/>
       </item>
       <item row="4" column="1">
        <widget class="QCheckBox" name="isBipolarCheckBox">
@@ -78,7 +78,7 @@
        </widget>
       </item>
       <item row="7" column="1">
-       <widget class="ScienDSpinBox" name="stimTrainFreqSpinBox">
+       <widget class="DelayScienDSpinBox" name="stimTrainFreqSpinBox">
         <property name="suffix">
          <string>Hz</string>
         </property>
@@ -171,7 +171,7 @@
        </widget>
       </item>
       <item row="3" column="1">
-       <widget class="ScienDSpinBox" name="stimDurationSpinBox">
+       <widget class="DelayScienDSpinBox" name="stimDurationSpinBox">
         <property name="suffix">
          <string>s</string>
         </property>
@@ -216,7 +216,7 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="ScienDSpinBox" name="thresholdValueSpinBox"/>
+       <widget class="DelayScienDSpinBox" name="thresholdValueSpinBox"/>
       </item>
      </layout>
     </widget>
@@ -228,6 +228,11 @@
    <class>ScienDSpinBox</class>
    <extends>QDoubleSpinBox</extends>
    <header location="global">src.scientific_spinbox</header>
+  </customwidget>
+  <customwidget>
+   <class>DelayScienDSpinBox</class>
+   <extends>QDoubleSpinBox</extends>
+   <header location="global">src.GUI</header>
   </customwidget>
  </customwidgets>
  <tabstops>
