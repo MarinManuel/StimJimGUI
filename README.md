@@ -52,6 +52,8 @@ optional arguments:
 ```
 
 # Acknowledgments
+This work was supported in part by NIH-NINDS R01NS132487.
+
 `scientific_spinbox.py` is from [pyqt-labutils](https://github.com/OE-FET/pyqt-labutils/tree/master)
 
 Icons by [Icons8](https://icons8.com)
